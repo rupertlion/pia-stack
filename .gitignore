@@ -1,0 +1,59 @@
+.aider*
+.env
+
+# API Keys and Secrets
+.env
+google_credentials.json
+google_token.json
+
+# State and Logs
+last_run.json
+*.log
+sync_log.txt
+
+# Virtual Environments
+.venv/
+agents/.venv/
+etl/.venv/
+__pycache__/
+*.pyc
+
+# Heavy Models and Databases
+models/
+qdrant_storage/
+ollama-data/
+*.db
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# API Keys and Secrets
+.env
+google_credentials.json
+google_token.json
+
+# State and Logs
+last_run.json
+*.log
+sync_log.txt
+
+# Virtual Environments
+.venv/
+agents/.venv/
+etl/.venv/
+__pycache__/
+*.pyc
+
+# Heavy Models and Databases
+models/
+qdrant_storage/
+ollama-data/
+*.db
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+qdrant_data/

@@ -1,0 +1,27 @@
+use_default_settings: true
+
+server:
+  secret_key: "c6bc6b2e502586e7141bd39f25782f49e9242e4e5edc540b9a653b8bae2cabf7"
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: false
+
+search:
+  formats:
+    - html
+    - json
+  default_lang: "en"
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+  - name: bing
+    engine: bing
+    shortcut: b
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+  - name: google news
+    engine: google_news
+    shortcut: gn

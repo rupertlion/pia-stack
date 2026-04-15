@@ -1,0 +1,132 @@
+
+
+services:
+  # ─── INFERENCE ENGINE ───
+  vllm:
+    image: ollama/ollama:latest
+    container_name: pia-vllm
+    ports:
+      - "8000:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ─── EMBEDDING MODEL ───
+  embeddings:
+    image: python:3.11-slim
+    container_name: pia-embeddings
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./models:/models
+      - ./etl/scripts/embed_server.py:/app/embed_server.py:ro
+    command: >
+      bash -c "pip install --quiet sentence-transformers fastapi uvicorn einops &&
+      python /app/embed_server.py"
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 8G
+    restart: unless-stopped
+
+  # ─── VECTOR DATABASE ───
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: pia-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
+      # NOTE: If reusing an existing Qdrant volume, change the line above to:
+      # - your_existing_volume_name:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    restart: unless-stopped
+
+  # ─── LIVE SEARCH ───
+  searxng:
+    image: searxng/searxng:latest
+    container_name: pia-searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - BASE_URL=http://localhost:8080/
+      - INSTANCE_NAME=pia-search
+    restart: unless-stopped
+
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: pia-crawl4ai
+    ports:
+      - "11235:11235"
+    environment:
+      - CRAWL4AI_API_TOKEN=pia-local
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ─── CACHE ───
+  redis:
+    image: valkey/valkey:latest
+    container_name: pia-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # ─── UI ───
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: pia-webui
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://vllm:11434
+      - ENABLE_RAG_WEB_SEARCH=true
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q={query}&format=json
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_OPENAI_API_BASE_URL=http://embeddings:8081
+      - RAG_OPENAI_API_KEY=not-needed
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      - vllm
+      - searxng
+      - embeddings
+    restart: unless-stopped
+
+  # ─── FIRECRAWL (optional structured fetch) ───
+  firecrawl:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: pia-firecrawl
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://redis:6379
+      - NUM_WORKERS_PER_QUEUE=4
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  open-webui-data:
+  ollama-data:
