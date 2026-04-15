@@ -7,7 +7,7 @@ import io
 from google.auth.transport.requests import Request
 import requests
 from qdrant_client import QdrantClient
-from qdrant_client.models import CollectionName, PointStruct, Vector
+from qdrant_client.models import PointStruct
 
 # If modifying these SCOPES, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
