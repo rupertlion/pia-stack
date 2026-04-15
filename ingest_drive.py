@@ -9,6 +9,7 @@ import requests
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 import PyPDF2
+import uuid
 
 # If modifying these SCOPES, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -83,7 +84,7 @@ def send_to_embedding_server(text_chunk):
 def save_to_qdrant(vectors, file_id):
     """Save vectors to the 'documents' collection in Qdrant."""
     client = QdrantClient("localhost", port=6333)
-    points = [PointStruct(id=f"{file_id}_{i}", vector=v) for i, v in enumerate(vectors)]
+    points = [PointStruct(id=str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{file_id}_{i}")), vector=v) for i, v in enumerate(vectors)]
     client.upsert(collection_name="documents", points=points)
 
 def main():
