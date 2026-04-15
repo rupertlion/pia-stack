@@ -8,6 +8,7 @@ from google.auth.transport.requests import Request
 import requests
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
+import PyPDF2
 
 # If modifying these SCOPES, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -39,7 +40,7 @@ def authenticate():
 def list_files(service):
     """List files in Google Drive."""
     results = service.files().list(
-        pageSize=10, fields="nextPageToken, files(id, name)").execute()
+        pageSize=50, fields="nextPageToken, files(id, name, mimeType)").execute()
     items = results.get('files', [])
 
     if not items:
@@ -48,6 +49,8 @@ def list_files(service):
         print('Files:')
         for item in items:
             print(u'{0} ({1})'.format(item['name'], item['id']))
+
+    return items
 
 def download_file(service, file_id):
     """Download a file from Google Drive."""
@@ -61,6 +64,14 @@ def download_file(service, file_id):
 
     return fh.getvalue()
 
+def extract_text_from_pdf(content):
+    """Extract text from a PDF file."""
+    pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
+
 def send_to_embedding_server(content):
     """Send content to the local embedding server and get vectors."""
     response = requests.post('http://localhost:8081/embed', json={'text': content})
@@ -72,19 +83,35 @@ def send_to_embedding_server(content):
 def save_to_qdrant(vectors, file_id):
     """Save vectors to the 'documents' collection in Qdrant."""
     client = QdrantClient("localhost", port=6333)
-    point = PointStruct(id=file_id, vector=vectors[0])
-    client.upsert(collection_name="documents", points=[point])
+    points = [PointStruct(id=f"{file_id}_{i}", vector=v) for i, v in enumerate(vectors)]
+    client.upsert(collection_name="documents", points=points)
 
 def main():
     creds = authenticate()
     service = build('drive', 'v3', credentials=creds)
 
-    list_files(service)
-    file_id = input("Enter the ID of the file you want to download: ")
-    content = download_file(service, file_id).decode('utf-8')
-    vectors = send_to_embedding_server(content)
-    save_to_qdrant(vectors, file_id)
-    print(f"File {file_id} processed and saved successfully.")
+    files = list_files(service)
+    for file in files:
+        if file['mimeType'] == 'application/pdf':
+            print(f"Ingesting: {file['name']}")
+            content = download_file(service, file['id'])
+            text = extract_text_from_pdf(content)
+        elif file['mimeType'] == 'application/vnd.google-apps.document':
+            print(f"Ingesting: {file['name']}")
+            request = service.files().export(fileId=file['id'], mimeType='text/plain')
+            response = request.execute()
+            text = response.decode('utf-8')
+        else:
+            continue
+
+        # Chunk the text into 1000 characters
+        chunks = [text[i:i+1000] for i in range(0, len(text), 1000)]
+        vectors = []
+        for chunk in chunks:
+            vectors.extend(send_to_embedding_server(chunk))
+
+        save_to_qdrant(vectors, file['id'])
+        print(f"File {file['name']} processed and saved successfully.")
 
 if __name__ == '__main__':
     main()
