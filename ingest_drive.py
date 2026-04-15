@@ -65,7 +65,7 @@ def download_file(service, file_id):
 
     return fh.getvalue()
 
-def extract_text_from_pdf(content):
+def extract_text_from_pdf(content, file):
     """Extract text from a PDF file."""
     try:
         pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
@@ -101,7 +101,7 @@ def main():
         if file['mimeType'] == 'application/pdf':
             print(f"Ingesting: {file['name']}")
             content = download_file(service, file['id'])
-            text = extract_text_from_pdf(content)
+            text = extract_text_from_pdf(content, file)
         elif file['mimeType'] == 'application/vnd.google-apps.document':
             print(f"Ingesting: {file['name']}")
             request = service.files().export(fileId=file['id'], mimeType='text/plain')
