@@ -72,9 +72,9 @@ def extract_text_from_pdf(content):
         text += page.extract_text()
     return text
 
-def send_to_embedding_server(content):
+def send_to_embedding_server(text_chunk):
     """Send content to the local embedding server and get vectors."""
-    response = requests.post('http://localhost:8081/embed', json={'text': content})
+    response = requests.post('http://localhost:8081/embed', json={'inputs': [text_chunk]})
     if response.status_code == 200:
         return response.json().get('vectors')
     else:
