@@ -85,7 +85,8 @@ def save_to_qdrant(vectors, file_id):
     """Save vectors to the 'documents' collection in Qdrant."""
     client = QdrantClient("localhost", port=6333)
     points = [PointStruct(id=str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{file_id}_{i}")), vector=v) for i, v in enumerate(vectors)]
-    client.upsert(collection_name="documents", points=points)
+    if points:
+        client.upsert(collection_name="documents", points=points)
 
 def main():
     creds = authenticate()
@@ -103,6 +104,10 @@ def main():
             response = request.execute()
             text = response.decode('utf-8')
         else:
+            continue
+
+        if not text.strip():
+            print(f"Skipping {file['name']}: No text content found (possibly a scan).")
             continue
 
         # Chunk the text into 1000 characters
