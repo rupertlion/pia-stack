@@ -4,6 +4,36 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict
 import httpx
 from qdrant_client import QdrantClient
+import uuid
+from datetime import datetime
+
+def index_conversation(query, response):
+    try:
+        # Create a combined string of the interaction
+        interaction_text = f"User asked: {query}\nAssistant replied: {response}"
+        
+        # Get the embedding
+        embed_resp = httpx.post(EMBED_URL, json={
+            "inputs": [interaction_text], "truncate": True
+        }, timeout=60.0)
+        vector = embed_resp.json()[0]
+
+        # Push to Qdrant REST API
+        point_id = str(uuid.uuid4())
+        httpx.put(f"{QDRANT_URL}/collections/conversations/points", json={
+            "points": [{
+                "id": point_id,
+                "vector": vector,
+                "payload": {
+                    "content": interaction_text,
+                    "timestamp": datetime.now().isoformat(),
+                    "type": "chat_history"
+                }
+            }]
+        }, timeout=10.0)
+        print(f"  [MEMORY] Interaction saved to Qdrant.")
+    except Exception as e:
+        print(f"  [MEMORY ERROR] Failed to save conversation: {e}")
 
 LLM_URL = "http://localhost:8000/v1/chat/completions"
 SEARCH_URL = "http://localhost:8080/search"
@@ -151,7 +181,7 @@ def search_rag(state):
         
         results = []
         # 2. Search each collection via direct REST API
-        for collection in ["emails", "documents", "calendar", "codebase"]:
+        for collection in ["emails", "documents", "calendar", "codebase", "conversations"]:
             try:
                 search_resp = httpx.post(f"{QDRANT_URL}/collections/{collection}/points/search", json={
                     "vector": query_vector,
@@ -265,10 +295,16 @@ app = graph.compile()
 if __name__ == "__main__":
     query = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "What is exec search?"
     print("\nQuery: " + query)
+    
+    # 1. Run the agent graph
     result = app.invoke({
         "query": query, "profile": "",
         "local_context": [], "web_context": [], "response": "",
     })
+    
+    # 2. SAVE THE INTERACTION TO MEMORY (The missing stitch)
+    index_conversation(result["query"], result["response"])
+    
     print("\n" + "=" * 60)
     print("[" + result["profile"] + " profile | " + PROFILES[result["profile"]]["model"] + "]")
     print("=" * 60)
