@@ -1,19 +1,19 @@
 import subprocess
-import requests
+import httpx
 
 def flush_vram():
     qwen_models = [
-        "http://localhost:11434/keep_alive",
-        "http://localhost:11435/keep_alive"
+        {"model": "qwen2.5-coder:14b", "keep_alive": 0},
+        {"model": "qwen3:32b", "keep_alive": 0}
     ]
     
     for model in qwen_models:
         try:
-            response = requests.post(model, json={"keep_alive": 0})
+            response = httpx.post("http://localhost:11434/api/generate", json=model)
             response.raise_for_status()
-            print(f"VRAM flushed for {model}")
-        except requests.RequestException as e:
-            print(f"Failed to flush VRAM for {model}: {e}")
+            print(f"VRAM flushed for {model['model']}")
+        except httpx.RequestException as e:
+            print(f"Failed to flush VRAM for {model['model']}: {e}")
 
 def start_docker_compose():
     try:
