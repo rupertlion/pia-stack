@@ -1,26 +1,7 @@
-
-
 services:
-  # ─── INFERENCE ENGINE ───
-  vllm:
-    image: ollama/ollama:latest
-    container_name: pia-vllm
-    ports:
-      - "8000:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-
   # ─── EMBEDDING MODEL ───
   embeddings:
-    image: python:3.11-slim
+    image: pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
     container_name: pia-embeddings
     ports:
       - "8081:8081"
@@ -32,9 +13,11 @@ services:
       python /app/embed_server.py"
     deploy:
       resources:
-        limits:
-          cpus: '8'
-          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: unless-stopped
 
   # ─── VECTOR DATABASE ───
@@ -46,8 +29,6 @@ services:
       - "6334:6334"
     volumes:
       - ./qdrant_data:/qdrant/storage
-      # NOTE: If reusing an existing Qdrant volume, change the line above to:
-      # - your_existing_volume_name:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
     restart: unless-stopped
@@ -89,17 +70,24 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
-  # ─── UI ───
+  # ─── UI (The Command Center) ───
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: pia-webui
     ports:
       - "3000:8080"
     environment:
+      # Native WSL Ollama Bridge
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Web Search Config
       - ENABLE_RAG_WEB_SEARCH=true
       - RAG_WEB_SEARCH_ENGINE=searxng
       - SEARXNG_QUERY_URL=http://searxng:8080/search?q={query}&format=json
+      # RAG & Qdrant Connection
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL=http://embeddings:8081
       - RAG_OPENAI_API_KEY=not-needed
@@ -108,11 +96,12 @@ services:
     volumes:
       - open-webui-data:/app/backend/data
     depends_on:
+      - qdrant
       - searxng
       - embeddings
     restart: unless-stopped
 
-  # ─── FIRECRAWL (optional structured fetch) ───
+  # ─── SCRAPING (Optional) ───
   firecrawl:
     image: ghcr.io/firecrawl/firecrawl:latest
     container_name: pia-firecrawl
@@ -130,4 +119,3 @@ services:
 
 volumes:
   open-webui-data:
-  ollama-data:

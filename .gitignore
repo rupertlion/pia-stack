@@ -59,3 +59,7 @@ ollama-data/
 .DS_Store
 Thumbs.db
 qdrant_data/
+google_credentials.json
+google_token.json
+last_run.json
+ingested_files.json
