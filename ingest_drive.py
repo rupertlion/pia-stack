@@ -67,11 +67,15 @@ def download_file(service, file_id):
 
 def extract_text_from_pdf(content):
     """Extract text from a PDF file."""
-    pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
-    text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text()
-    return text
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+        return text
+    except Exception as e:
+        print(f"Skipping {file['name']}: Error reading PDF structure.")
+        return ""
 
 def send_to_embedding_server(text_chunk):
     """Send content to the local embedding server and get vectors."""
