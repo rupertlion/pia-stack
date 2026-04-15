@@ -96,17 +96,18 @@ services:
     ports:
       - "3000:8080"
     environment:
-      - OLLAMA_BASE_URL=http://vllm:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - ENABLE_RAG_WEB_SEARCH=true
       - RAG_WEB_SEARCH_ENGINE=searxng
       - SEARXNG_QUERY_URL=http://searxng:8080/search?q={query}&format=json
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL=http://embeddings:8081
       - RAG_OPENAI_API_KEY=not-needed
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
     volumes:
       - open-webui-data:/app/backend/data
     depends_on:
-      - vllm
       - searxng
       - embeddings
     restart: unless-stopped
