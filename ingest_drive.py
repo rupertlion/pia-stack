@@ -39,19 +39,30 @@ def authenticate():
     return creds
 
 def list_files(service):
-    """List files in Google Drive."""
-    results = service.files().list(
-        pageSize=50, fields="nextPageToken, files(id, name, mimeType)").execute()
-    items = results.get('files', [])
+    """List all files in Google Drive."""
+    query = "mimeType != 'application/vnd.google-apps.folder' and trashed = false"
+    page_token = None
+    all_items = []
 
-    if not items:
+    while True:
+        results = service.files().list(
+            q=query,
+            fields="nextPageToken, files(id, name, mimeType)",
+            pageToken=page_token).execute()
+        items = results.get('files', [])
+        all_items.extend(items)
+        page_token = results.get('nextPageToken')
+        if not page_token:
+            break
+
+    if not all_items:
         print('No files found.')
     else:
         print('Files:')
-        for item in items:
+        for item in all_items:
             print(u'{0} ({1})'.format(item['name'], item['id']))
 
-    return items
+    return all_items
 
 def download_file(service, file_id):
     """Download a file from Google Drive."""
@@ -107,6 +118,10 @@ def main():
             request = service.files().export(fileId=file['id'], mimeType='text/plain')
             response = request.execute()
             text = response.decode('utf-8')
+        elif file['mimeType'] == 'text/plain':
+            print(f"Ingesting: {file['name']}")
+            content = download_file(service, file['id'])
+            text = content.decode('utf-8')
         else:
             continue
 
