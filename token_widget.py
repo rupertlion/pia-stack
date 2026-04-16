@@ -1,5 +1,6 @@
 import tkinter as tk
 from typing import Dict
+import time
 
 class TokenWidget:
     def __init__(self, master: tk.Tk):
