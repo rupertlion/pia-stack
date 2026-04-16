@@ -5,7 +5,7 @@ import time
 class TokenWidget:
     def __init__(self, master: tk.Tk):
         self.master = master
-        self.master.title("Token Speed Counter")
+        self.master.title("Token Speed-o-Meter")
         
         self.token_labels: Dict[str, tk.Label] = {}
         self.token_counts: Dict[str, int] = {}
