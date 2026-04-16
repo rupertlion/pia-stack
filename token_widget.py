@@ -6,13 +6,14 @@ class TokenWidget:
     def __init__(self, master: tk.Tk):
         self.master = master
         self.master.title("Token Speed-o-Meter")
+        self.master.geometry("400x300")  # Set the window size
         
         self.token_labels: Dict[str, tk.Label] = {}
         self.token_counts: Dict[str, int] = {}
         self.last_update_times: Dict[str, float] = {}
 
-    def add_model(self, model_name: str):
-        label = tk.Label(self.master, text=f"{model_name}: 0.00 tokens/s")
+    def add_model(self, model_name: str, display_name: str):
+        label = tk.Label(self.master, text=f"{display_name}: 0.00 tokens/s")
         label.pack()
         self.token_labels[model_name] = label
         self.token_counts[model_name] = 0
@@ -24,7 +25,7 @@ class TokenWidget:
         
         if elapsed_time >= 1.0:  # Update every second
             tokens_per_second = (token_count - self.token_counts[model_name]) / elapsed_time
-            self.token_labels[model_name].config(text=f"{model_name}: {tokens_per_second:.2f} tokens/s")
+            self.token_labels[model_name].config(text=f"{self.token_labels[model_name].cget('text').split(':')[0]}: {tokens_per_second:.2f} tokens/s")
             self.token_counts[model_name] = token_count
             self.last_update_times[model_name] = current_time
 
@@ -32,7 +33,7 @@ class TokenWidget:
 if __name__ == "__main__":
     root = tk.Tk()
     widget = TokenWidget(root)
-    widget.add_model("model1")
+    widget.add_model("model1", "GPT-4")
 
     def update_tokens():
         # Simulate updating token counts for models
